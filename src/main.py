@@ -9,9 +9,7 @@ from PyQt5.Qsci import *
 import sys
 from pathlib import Path
 
-import keyword 
-import pkgutil 
-
+from editor import Editor
 
 
 class MainWindow(QMainWindow):
@@ -78,73 +76,8 @@ class MainWindow(QMainWindow):
 
     
     def get_editor(self) -> QsciScintilla:
-        
-        # Instance
-        editor = QsciScintilla() 
-        # Encoding
-        editor.setUtf8(True)
-        # Font
-        editor.setFont(self.window_font)
-
-        # Brace matching 
-        editor.setBraceMatching(QsciScintilla.SloppyBraceMatch)
-
-        # Indentation
-        editor.setIndentationGuides(True)
-        editor.setTabWidth(4)
-        editor.setIndentationsUseTabs(False)
-        editor.setAutoIndent(True)
-
-        # Autocomplete 
-        editor.setAutoCompletionSource(QsciScintilla.AcsAll)
-        editor.setAutoCompletionThreshold(1)
-        editor.setAutoCompletionCaseSensitivity(False)
-        editor.setAutoCompletionUseSingle(QsciScintilla.AcusNever)
-
-        # Caret
-        #editor.setCaretForegroundColor(QColor("#dedcdc"))
-        editor.setCaretLineVisible(True)
-        editor.setCaretWidth(2)
-        #editor.setCaretLineBackgroundColor(QColor("#2c313c"))
-
-        # EOL
-        editor.setEolMode(QsciScintilla.EolWindows)
-        editor.setEolVisibility(False)
-
-        # Lexer for syntax highlighting
-        self.pylexer = QsciLexerPython()
-        self.pylexer.setDefaultFont(self.window_font)
-
-        # Api
-        self.api = QsciAPIs(self.pylexer)
-        for key in keyword.kwlist + dir(__builtins__):
-            self.api.add(key)
-
-        for _, name, _ in pkgutil.iter_modules():
-            self.api.add(name)
-
-        self.api.prepare()
-
-        editor.setLexer(self.pylexer)
-
-        # Line numbers 
-        editor.setMarginType(0, QsciScintilla.NumberMargin)
-        editor.setMarginWidth(0, "000")
-        editor.setMarginsForegroundColor(QColor("#ff888888"))
-        editor.setMarginsBackgroundColor(QColor("#282c34"))
-        editor.setMarginsFont(self.window_font)
-
-        # Key Press 
-        editor.keyPressEvent = self.handle_editor_press
-
-        return editor
-
-    def handle_editor_press(self, e: QKeyEvent):
-        editor: QsciScintilla = self.tab_view.currentWidget()
-        if e.modifiers() == Qt.ControlModifier and e.key() == Qt.Key_Space:
-            editor.autoCompleteFromAll()
-        else: 
-            QsciScintilla.keyPressEvent(editor, e)
+        editor = Editor()
+        return editor        
     
     def is_binary(self, path):
         '''
@@ -186,6 +119,14 @@ class MainWindow(QMainWindow):
         self.tab_view.setCurrentIndex(self.tab_view.count() - 1)
         self.statusBar().showMessage(f"Opened {path.name}", 2000)
 
+    def get_side_bar_label(self, path, name):
+        label = QLabel()
+        label.setPixmap(QPixmap(path).scaled(QSize(25, 25)))
+        label.setAlignment(Qt.AlignmentFlag.AlignTop)
+        label.setFont(self.window_font)
+        label.mousePressEvent = lambda e: self.show_hide_tab(e, name)
+        return label
+
     def set_up_body(self):
         
         # Body
@@ -214,11 +155,7 @@ class MainWindow(QMainWindow):
         side_bar_layout.setAlignment(Qt.AlignTop | Qt.AlignCenter)
 
         # Setup labels 
-        folder_label = QLabel()
-        folder_label.setPixmap(QPixmap("./src/icons/folder-icon-blue.svg").scaled(QSize(25, 25)))
-        folder_label.setAlignment(Qt.AlignmentFlag.AlignTop)
-        folder_label.setFont(self.window_font)
-        folder_label.mousePressEvent = self.show_hide_tab
+        folder_label = self.get_side_bar_label("./src/icons/folder-icon-blue.svg", "folder-icon")
         side_bar_layout.addWidget(folder_label)
         self.side_bar.setLayout(side_bar_layout)
 
@@ -302,8 +239,11 @@ class MainWindow(QMainWindow):
     def close_tab(self, index):
         self.tab_view.removeTab(index)
 
-    def show_hide_tab(self):
-        ...
+    def show_hide_tab(self, e, type_):
+        if self.tree_frame.isHidden():
+            self.tree_frame.show()
+        else: 
+            self.tree_frame.hide()
 
 
     def tree_view_context_menu(self, pos):
